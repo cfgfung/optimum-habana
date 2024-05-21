@@ -132,6 +132,14 @@ class GaudiDiffusionPipeline(DiffusionPipeline):
 
             self._device = torch.device("hpu")
 
+            import diffusers
+
+            # Patch for unconditional image generation
+            from ..models import gaudi_unet_2d_model_forward
+            diffusers.models.unets.unet_2d.UNet2DModel.forward = (
+                gaudi_unet_2d_model_forward
+            )
+
             if isinstance(gaudi_config, str):
                 # Config from the Hub
                 self.gaudi_config = GaudiConfig.from_pretrained(gaudi_config)
@@ -154,11 +162,9 @@ class GaudiDiffusionPipeline(DiffusionPipeline):
                     self.gaudi_config.declare_autocast_bf16_fp32_ops()
 
             # Workaround for Synapse 1.11 for full bf16 and Torch Autocast
+            from ..models import gaudi_unet_2d_condition_model_forward
+            
             if bf16_full_eval or self.gaudi_config.use_torch_autocast:
-                import diffusers
-
-                from ..models import gaudi_unet_2d_condition_model_forward
-
                 diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.forward = (
                     gaudi_unet_2d_condition_model_forward
                 )
